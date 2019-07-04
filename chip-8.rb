@@ -44,7 +44,7 @@ class C8vm
       delay: nil, sound: nil, display: nil,
     }
 
-    @display = Array.new(DISPLAY_WIDTH * DISPLAY_HEIGHT, PIXEL_BLANK)
+    @display = Array.new(DISPLAY_WIDTH * DISPLAY_HEIGHT, 0)
     @pc = ENTRY_ADDRESS    
   end
   
@@ -86,9 +86,7 @@ class C8vm
     
     # 0x00e0 Clear screen
     if opcode == 0x00e0
-      @display.each_index do |i|
-        @display[i] = PIXEL_BLANK
-      end
+      @display = Array.new(DISPLAY_WIDTH * DISPLAY_HEIGHT, 0)
     # 0x00ee Return
     elsif opcode == 0x00ee
       @pc = @stack[@sp]
@@ -208,7 +206,7 @@ class C8vm
         byte = @memory[@regi + i]
         8.times do |j|
           pixel = (@regv[o[2]] + i) * DISPLAY_WIDTH + @regv[o[1]] + j
-          @display[pixel] = (byte >> (7 - j)) & 0x1 == 0x1 ? PIXEL_FILL : PIXEL_BLANK
+          @display[pixel] ^= (byte >> (7 - j)) & 0x1
         end
       end
     # 0xex9e Skip if vx key pressed *TODO*
@@ -257,7 +255,7 @@ class C8vm
     # return if @display == @displayPrev
     DISPLAY_HEIGHT.times do |y|
       DISPLAY_WIDTH.times do |x|
-        print @display[y * DISPLAY_WIDTH + x]
+        print @display[y * DISPLAY_WIDTH + x] == 0x1 ? PIXEL_FILL : PIXEL_BLANK
       end
       print "\n"
     end
