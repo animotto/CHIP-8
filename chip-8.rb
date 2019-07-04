@@ -44,7 +44,7 @@ class C8vm
       delay: nil, sound: nil, display: nil,
     }
 
-    @display = Array.new(DISPLAY_WIDTH * DISPLAY_HEIGHT)
+    @display = Array.new(DISPLAY_WIDTH * DISPLAY_HEIGHT, PIXEL_BLANK)
     @pc = ENTRY_ADDRESS    
   end
   
@@ -211,6 +211,38 @@ class C8vm
           @display[pixel] = (byte >> (7 - j)) & 0x1 == 0x1 ? PIXEL_FILL : PIXEL_BLANK
         end
       end
+    # 0xex9e Skip if vx key pressed *TODO*
+    elsif o[0] == 0xe and o[2] == 0x9 and o[3] == 0xe
+    # 0xexa1 Skip if vx key not pressed *TODO*
+    elsif o[0] == 0xe and o[2] == 0xa and o[3] == 0x1
+    # 0xfx07 Load delay timer to vx
+    elsif o[0] == 0xf and o[2] == 0x0 and o[3] == 0x7
+      @regv[o[1]] = @timers[:delay]
+    # 0xfx0a Wait key press and load to vx *TODO*
+    elsif o[0] == 0xf and o[2] == 0x0 and o[3] == 0xa
+    # 0xfx15 Load vx to delay timer
+    elsif o[0] == 0xf and o[2] == 0x1 and o[3] == 0x5
+      @timers[:delay] = @regv[o[1]]
+    # 0xfx18 Load vx to sound timer
+    elsif o[0] == 0xf and o[2] == 0x1 and o[3] == 0x8
+      @timers[:sound] = @regv[o[1]]
+    # 0xfx1e Load to i (i + vx)
+    elsif o[0] == 0xf and o[2] == 0x1 and o[3] == 0xe
+      @regi += @regv[o[1]]
+    # 0xfx29 Draw font symbols from vx *TODO*
+    elsif o[0] == 0xf and o[2] == 0x2 and o[3] == 0x9
+    # 0xfx33 Load binary-decimal vx to i, i + 1, i + 2 *TODO*
+    elsif o[0] == 0xf and o[2] == 0x3 and o[3] == 0x3
+    # 0xfx55 Load v0..vx to i
+    elsif o[0] == 0xf and o[2] == 5 and o[3] == 5
+      (0..o[1]).each do |i|
+        @memory[@regi + i] = @regv[i]
+      end
+    # 0xfx65 Load i to v0..vx
+    elsif o[0] == 0xf and o[2] == 6 and o[3] == 5
+      (0..o[1]).each do |i|
+        @regv[i] = @memory[@regi + i]
+      end
     end
 
     @pc += 2
@@ -280,6 +312,24 @@ if ARGV[0]
       else
         puts "VM not loaded"
       end
+
+    when /^w(rite)?$/
+      if vm
+        if cmd[1]
+          address = cmd[1].to_i(16)
+          if cmd[2]
+            byte = cmd[2].to_i(16)
+            vm.memory[address] = byte
+            puts "%02x wrote in %03x" % [byte, address]
+          else
+            puts "Invalid data"
+          end
+        else
+          puts "Invalid address"
+        end
+      else
+        puts "VM not loaded"
+      end
       
     when /^d(ump)?$/
       if vm
@@ -295,7 +345,8 @@ if ARGV[0]
           16.times do |i|
             print "%03x | " % [a + (i * 0xf)]
             16.times do |j|
-              print "%02x " % vm.memory[a + (i * 0xf) + j]
+              b = a + (i * 0xf) + j
+              print (b == vm.pc or b == vm.pc + 1) ? "\e[41m%02x\e[0m " % vm.memory[b] : "%02x " % vm.memory[b]
               print " " if j == 0x7
               puts if j == 0xf
             end
