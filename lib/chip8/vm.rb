@@ -4,6 +4,8 @@ module Chip8
   ##
   # Virtual machine
   class VM
+    FREQUENCY = 600
+    TIMER = 60
     MEMORY_SIZE = 4096
     REGISTERS_NUM = 16
     STACK_SIZE = 16
@@ -73,7 +75,7 @@ module Chip8
       0xf0, 0x80, 0xf0, 0x80, 0x80  # F
     ].freeze
 
-    attr_reader :rv, :ri, :sp, :pc, :dt, :st, :display, :memory, :stack
+    attr_reader :rv, :ri, :sp, :pc, :dt, :st, :display, :memory, :stack, :ticks
 
     attr_accessor :keys
 
@@ -93,6 +95,7 @@ module Chip8
       @keys = Array.new(KEYS_NUM, false)
       @dt = 0
       @st = 0
+      @ticks = 0
 
       load_font
     end
@@ -106,10 +109,18 @@ module Chip8
     end
 
     def run
+      frequency = 1 / FREQUENCY.to_f
       @running = true
       while @running
         step
+        @ticks += 1
+        if (@ticks % (FREQUENCY / TIMER)).zero?
+          @dt -= 1 if @dt.positive?
+          @st -= 1 if @st.positive?
+        end
+
         yield if block_given?
+        Kernel.sleep(frequency)
       end
     end
 
